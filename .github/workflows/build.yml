@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # needed to publish the download on the Releases page
 
 jobs:
   build:
@@ -25,8 +25,24 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile --windowed
           --name "Easy Video Downloader" --icon icon.ico --add-data "icon.ico;."
           easy_video_downloader.py
+      - name: Give the file a link-friendly name
+        run: Copy-Item "dist/Easy Video Downloader.exe" "dist/Easy-Video-Downloader.exe"
       - uses: actions/upload-artifact@v4
         with:
           name: Easy-Video-Downloader-Windows
-          path: dist/Easy Video Downloader.exe
+          path: dist/Easy-Video-Downloader.exe
           if-no-files-found: error
+      # Publish a release so this permanent link always serves the newest build:
+      # https://github.com/<owner>/<repo>/releases/latest/download/Easy-Video-Downloader.exe
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Easy Video Downloader (build ${{ github.run_number }})
+          body: |
+            Download **Easy-Video-Downloader.exe** below and double-click it. No installation or Python needed.
+            If Windows says "Windows protected your PC", click **More info -> Run anyway**.
+          files: dist/Easy-Video-Downloader.exe
+          make_latest: true
+          fail_on_unmatched_files: true

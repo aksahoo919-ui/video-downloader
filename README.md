@@ -3,6 +3,12 @@
 A simple Windows program for downloading videos or audio (MP3 etc.) from a link.
 Paste the link, pick Video or Audio, press **Download**.
 
+## Download
+
+**[Download Easy Video Downloader for Windows](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader.exe)**
+
+Click the link, then double-click the downloaded file. Nothing to install, no Python needed.
+
 ## Files
 
 | File | What it is |
@@ -12,6 +18,11 @@ Paste the link, pick Video or Audio, press **Download**.
 | `icon.ico`, `icon.png` | Program icon |
 
 ## Making the .exe
+
+Every push to `main` builds the `.exe` automatically on GitHub and publishes it as a new release,
+so the download link above always gives the newest version.
+
+To build it yourself instead:
 
 1. On a Windows PC, install Python from python.org (tick *Add python.exe to PATH*).
 2. Double-click `build_exe.bat`.

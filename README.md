@@ -9,6 +9,8 @@ Paste the link, pick Video or Audio, press **Download**.
 
 Click the link, then double-click the downloaded file. Nothing to install, no Python needed.
 
+New to the program? Read the **[User Guide](USER_GUIDE.md)** for step-by-step help.
+
 ## Files
 
 | File | What it is |

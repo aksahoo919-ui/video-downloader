@@ -43,6 +43,8 @@ jobs:
           body: |
             Download **Easy-Video-Downloader.exe** below and double-click it. No installation or Python needed.
             If Windows says "Windows protected your PC", click **More info -> Run anyway**.
+
+            Step-by-step help: [User Guide](https://github.com/${{ github.repository }}/blob/main/USER_GUIDE.md)
           files: dist/Easy-Video-Downloader.exe
           make_latest: true
           fail_on_unmatched_files: true

@@ -58,7 +58,7 @@ FFMPEG_URL = ("https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/
 DENO_URL = ("https://github.com/denoland/deno/releases/latest/download/"
             "deno-x86_64-pc-windows-msvc.zip")
 
-UPDATE_RECHECK_SECONDS = 6 * 60 * 60  # re-check for engine updates after 6 hours
+UPDATE_RETRY_GAP_SECONDS = 30 * 60  # after a failed download, check for an engine update at most this often
 NO_WINDOW = 0x08000000 if IS_WINDOWS else 0  # CREATE_NO_WINDOW: no black console popups
 
 # ----------------------------------------------------------------------------
@@ -231,6 +231,23 @@ def extract_from_zip(zip_path, wanted_names, target_dir):
                     shutil.copyfileobj(src, dst)
                 found.add(name)
     return found
+
+
+# Errors a newer download engine cannot fix, so they never trigger an update check.
+NOT_FIXED_BY_UPDATE = (
+    "getaddrinfo", "name resolution", "network is unreachable", "timed out", "connection refused",
+    "unable to connect", "no route to host", "private video", "sign in to confirm your age",
+    "age-restricted", "age restricted", "members-only", "members only", "join this channel",
+    "video unavailable", "has been removed", "no longer available", "account associated",
+    "not available in your country", "http error 404", "http error 410", "no space left",
+    "not enough space", "permission denied", "access is denied", "429", "too many requests",
+)
+
+
+def update_might_help(raw):
+    """True when a failed download could be caused by an outdated download engine."""
+    low = (raw or "").lower()
+    return not any(n in low for n in NOT_FIXED_BY_UPDATE)
 
 
 def friendly_error(raw):
@@ -659,13 +676,10 @@ class App(tk.Tk):
             if first_time:
                 self._post("status", "First-time setup: downloading the tools needed (one time only)...")
 
-            # 1) yt-dlp: install, or let it update itself
+            # 1) yt-dlp: install it the first time. Updates happen only when a download fails.
             if not YTDLP_PATH.exists():
                 self._install_engine()
                 self.last_update_check = time.time()
-            else:
-                self._post("status", "Checking for updates...")
-                self._update_engine()
 
             code, version = run_quiet([str(YTDLP_PATH), "--version"])
             if code != 0:
@@ -734,14 +748,14 @@ class App(tk.Tk):
         self._post("engine", f"Download engine: version {self.engine_version}")
 
     def _update_engine(self):
-        """Bring yt-dlp up to date. Returns a short human message."""
+        """Bring yt-dlp up to date. Returns (updated, short human message)."""
         before = run_quiet([str(YTDLP_PATH), "--version"])[1]
         self.last_update_check = time.time()
         try:
             latest = latest_engine_version()
             self._post("log", f"[update] installed: {before}, newest: {latest}")
             if latest == before:
-                return f"You already have the newest download engine (version {before})."
+                return False, f"You already have the newest download engine (version {before})."
             fresh = YTDLP_PATH.with_name(YTDLP_PATH.name + ".new")
             self._download_tool("Download engine update", YTDLP_URL, fresh)
             verify_engine_file(fresh)
@@ -761,8 +775,8 @@ class App(tk.Tk):
         after = run_quiet([str(YTDLP_PATH), "--version"])[1]
         if after and after != before:
             self._set_engine_version(after)
-            return f"Updated the download engine to version {after}."
-        return "Could not check for updates right now. Please check your internet connection."
+            return True, f"Updated the download engine to version {after}."
+        return False, "Could not check for updates right now. Please check your internet connection."
 
     def _manual_update(self):
         if self.busy or not self.ready:
@@ -771,7 +785,7 @@ class App(tk.Tk):
         def work():
             self._post("status", "Checking for updates...")
             self._post("progress", None)
-            message = self._update_engine()
+            _, message = self._update_engine()
             self._post("progress", 0)
             self._post("status", "Ready. Paste a link and press Download.")
             self._post("ask_update_result", message)
@@ -860,17 +874,15 @@ class App(tk.Tk):
         return cmd + ["--", url]
 
     def _batch_worker(self, urls, mode, choice, folder):
-        # Long-running window? Make sure the engine is still current before downloading.
-        if time.time() - self.last_update_check > UPDATE_RECHECK_SECONDS:
-            self._post("status", "Checking for updates...")
-            self._update_engine()
-
         succeeded, failed = 0, []
         for index, url in enumerate(urls, 1):
             if self.cancelled:
                 break
             prefix = f"({index} of {len(urls)}) " if len(urls) > 1 else ""
-            ok, error = self._download_one(url, mode, choice, folder, prefix)
+            ok, error, raw = self._download_one(url, mode, choice, folder, prefix)
+            if not ok and not self.cancelled and self._update_after_error(raw, prefix):
+                self._post("status", prefix + "Trying again with the updated download engine...")
+                ok, error, raw = self._download_one(url, mode, choice, folder, prefix)
             if self.cancelled:
                 break
             if ok:
@@ -879,6 +891,19 @@ class App(tk.Tk):
                 failed.append((url, error))
                 self._post("log", f"FAILED: {url}\n   -> {error}")
         self._post("batch_done", succeeded, failed, self.cancelled)
+
+    def _update_after_error(self, raw, prefix):
+        """After a failed download, update the engine if that could help. True if it was updated."""
+        if not update_might_help(raw):
+            return False
+        if time.time() - self.last_update_check < UPDATE_RETRY_GAP_SECONDS:
+            return False  # checked recently; a newer engine is unlikely to exist yet
+        self._post("status", prefix + "That did not work. Checking for a newer download engine...")
+        self._post("progress", None)
+        self._post("detail", "")
+        updated, message = self._update_engine()
+        self._post("log", "[update] " + message)
+        return updated
 
     def _download_one(self, url, mode, choice, folder, prefix):
         self._post("status", prefix + "Looking up the video...")
@@ -892,7 +917,7 @@ class App(tk.Tk):
                 creationflags=NO_WINDOW, env=tool_env(),
             )
         except OSError as exc:
-            return False, f"The download engine could not start ({exc})."
+            return False, f"The download engine could not start ({exc}).", str(exc)
 
         last_error = ""
         part = 0               # which stream we are on (video = 1, audio = 2)
@@ -949,8 +974,10 @@ class App(tk.Tk):
 
         code = self.process.wait()
         if code == 0:
-            return True, ""
-        return False, friendly_error(last_error) if last_error else "Something went wrong with this download."
+            return True, "", ""
+        if last_error:
+            return False, friendly_error(last_error), last_error
+        return False, "Something went wrong with this download.", ""
 
 
 def main():

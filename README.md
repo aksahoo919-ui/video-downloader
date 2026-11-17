@@ -33,15 +33,15 @@ To build it yourself instead:
 ## How automatic updates work
 
 The download engine (yt-dlp) is not baked into the `.exe`. It lives in
-`%LOCALAPPDATA%\EasyVideoDownloader\bin` and the program keeps it current:
+`%LOCALAPPDATA%\EasyVideoDownloader\bin`:
 
 - **First start:** downloads the newest yt-dlp, FFmpeg and Deno (one time, roughly 260 MB, needs internet).
-- **Every start:** compares the installed yt-dlp with the newest release and, if there is a newer one,
-  downloads it, checks it against the published checksum, and swaps it in.
-- **Left open for a long time:** re-checks before a download if the last check is over 6 hours old.
+- **Normal starts:** no update check, so the program opens straight away and works offline.
+- **When a download fails:** if the error is one a newer engine could fix (not, for example, a private
+  video, a full disk or no internet), the program checks for a newer yt-dlp. If there is one, it downloads
+  it, checks it against the published checksum, swaps it in, and retries that download once. To avoid
+  repeated checks, it checks at most once every 30 minutes.
 - **Manually:** the *Check for updates* link at the bottom of the window.
-
-If there is no internet at start-up, the program simply uses the engine it already has.
 
 ## Notes for whoever hands this out
 

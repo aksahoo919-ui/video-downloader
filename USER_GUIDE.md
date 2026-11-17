@@ -97,8 +97,8 @@ Click the big red **Download** button. You'll see progress underneath.
 
 ## Updates
 
-You don't need to do anything. Each time you open the program, it checks for updates to its download
-tools and installs them by itself. This keeps downloads working when websites change.
+You don't need to do anything. If a download fails because websites have changed, the program
+automatically looks for an update to its download tools, installs it, and tries that download again.
 
 You can also click **Check for updates** at the bottom of the window at any time.
 

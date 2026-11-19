@@ -16,14 +16,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install PyInstaller
-        run: python -m pip install --upgrade pip pyinstaller
+      # Build PyInstaller's launcher from source instead of using the shared prebuilt one.
+      # Antivirus tools often flag the prebuilt launcher because malware reuses it.
+      - name: Install PyInstaller (launcher compiled from source)
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: "1"
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install --no-binary pyinstaller --no-cache-dir pyinstaller
       - name: Check the program loads on Windows
         run: python -c "import easy_video_downloader as m; print(m.APP_NAME, m.YTDLP_URL)"
       - name: Build
         run: >
           python -m PyInstaller --noconfirm --clean --onefile --windowed
           --name "Easy Video Downloader" --icon icon.ico --add-data "icon.ico;."
+          --version-file version_info.txt --noupx
           easy_video_downloader.py
       - name: Give the file a link-friendly name
         run: Copy-Item "dist/Easy Video Downloader.exe" "dist/Easy-Video-Downloader.exe"

@@ -17,6 +17,7 @@ if not exist ".build-venv\Scripts\python.exe" %PY% -m venv .build-venv || goto :
 echo [2/3] Building the program (takes about a minute)...
 ".build-venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onefile --windowed ^
     --name "Easy Video Downloader" --icon icon.ico --add-data "icon.ico;." ^
+    --version-file version_info.txt --noupx ^
     easy_video_downloader.py || goto :fail
 
 echo [3/3] Done.

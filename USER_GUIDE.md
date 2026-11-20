@@ -1,6 +1,6 @@
 # Easy Video Downloader – User Guide
 
-Easy Video Downloader saves videos or music from a web link onto your Windows PC.
+Easy Video Downloader saves videos or music from a web link onto your Windows PC or Android phone.
 You paste a link, choose Video or Audio, and press **Download**. That's it.
 
 ---
@@ -12,6 +12,8 @@ You paste a link, choose Video or Audio, and press **Download**. That's it.
 - About 300 MB of free disk space (plus room for your downloads)
 
 You do **not** need to install anything else.
+
+**On an Android phone?** Skip to [Using the Android app](#using-the-android-app) at the end.
 
 ---
 
@@ -145,3 +147,51 @@ Your downloaded videos and music are not affected.
 
 Only download videos and music you have the right to download, such as your own content or content the
 owner allows you to save.
+
+---
+
+## Using the Android app
+
+### What you need
+
+- An Android phone with Android 7 or newer
+- About 300 MB of free space (plus room for your downloads)
+
+### Install it
+
+1. On your phone, open this link:
+   **[Download Easy Video Downloader for Android](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader.apk)**
+2. When the download finishes, tap the file **Easy-Video-Downloader.apk** (or find it in your **Files** app
+   under **Downloads**).
+3. Your phone may say it can't install apps from this source. Tap **Settings**, turn on
+   **Allow from this source**, then go back.
+4. Tap **Install**. If Google Play Protect asks about an unknown app, tap **More details → Install anyway**.
+5. Tap **Open**.
+
+The first start takes a few seconds while the app gets ready. It doesn't need to download anything.
+
+### Download a video or song
+
+1. **Paste the video link.** Copy the link from YouTube or your browser and tap **Paste link**. If a link is
+   already copied when you open the app, it's filled in for you.
+   **Even easier:** in YouTube or your browser, tap **Share** on a video and pick **Easy Video Downloader**.
+2. **Choose what you want:** **Video** or **Audio only (music)**, then a **Quality**. The choices are the same
+   as on Windows (see the tables above).
+3. Tap the big red **Download** button.
+
+You can leave the app while it downloads. Progress shows in your notifications, with a **Stop** button.
+The first time, the app asks to show notifications. Allow it if you want to see progress there; downloads
+work either way.
+
+When it's done, tap **Open file**, or **Downloads folder** to see everything. Files are saved in your phone's
+**Downloads** folder, in **Video Downloads**, where your gallery, music player and Files app can find them.
+
+### Updates and problems
+
+- The download engine updates itself only if a download fails because websites have changed. It then
+  tries that download again. You can also tap **Check for updates** at the bottom.
+- The error messages are the same as on Windows (see "Something went wrong?" above).
+- To get a newer version of the app, open the download link again and install. It replaces the old
+  version and keeps your settings.
+- To remove the app, press and hold its icon and tap **Uninstall**. Your downloaded files stay in
+  Downloads.

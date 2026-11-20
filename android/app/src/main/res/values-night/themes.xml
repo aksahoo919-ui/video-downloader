@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.EasyVideo" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#FFB4A8</item>
+        <item name="colorOnPrimary">#690002</item>
+        <item name="colorPrimaryContainer">#93000A</item>
+        <item name="colorOnPrimaryContainer">#FFDAD5</item>
+        <item name="colorSecondaryContainer">#93000A</item>
+        <item name="colorOnSecondaryContainer">#FFDAD5</item>
+    </style>
+</resources>

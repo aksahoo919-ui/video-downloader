@@ -5,9 +5,11 @@ Paste the link, pick Video or Audio, press **Download**.
 
 ## Download
 
-**[Download Easy Video Downloader for Windows](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader.exe)**
+**[Download Easy Video Downloader for Windows](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader-Setup.exe)**
 
-Click the link, then double-click the downloaded file. Nothing to install, no Python needed.
+Click the link, then double-click the downloaded installer. It installs for the current user (no admin
+rights, no Python needed) into `%LOCALAPPDATA%\Programs\Easy Video Downloader` and adds Start menu and
+desktop shortcuts. The older link ending in `Easy-Video-Downloader.exe` now gives the same installer.
 
 **[Download Easy Video Downloader for Android](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader.apk)**
 
@@ -20,24 +22,40 @@ New to the program? Read the **[User Guide](USER_GUIDE.md)** for step-by-step he
 | File | What it is |
 | --- | --- |
 | `easy_video_downloader.py` | The program (Python + Tkinter, no extra packages needed) |
-| `build_exe.bat` | Double-click on Windows to produce the `.exe` |
+| `build_exe.bat` | Double-click on Windows to build the program folder and installer |
+| `installer.iss` | Inno Setup script that turns the program folder into one Setup.exe |
+| `tests/windows_temp_check.ps1` | Windows test: installs, opens and closes the app, checks nothing is left in `%TEMP%` |
 | `icon.ico`, `icon.png` | Program icon |
 | `android/` | The Android app (Kotlin). Built into `Easy-Video-Downloader.apk` by GitHub Actions |
 
-## Making the .exe
+## Building the Windows program
 
-Every push to `main` builds the `.exe` automatically on GitHub and publishes it as a new release,
-so the download link above always gives the newest version.
+Every push to `main` builds the program on GitHub, tests it on a clean Windows machine and publishes the
+installer as a new release, so the download link above always gives the newest version.
+
+The program is a PyInstaller **folder build** (`--onedir`): it runs straight from its install folder.
+The older single-file build (`--onefile`) unpacked itself into a `_MEI...` folder in `%TEMP%` on every
+start, and that folder was left behind whenever the program was killed or crashed.
 
 To build it yourself instead:
 
-1. On a Windows PC, install Python from python.org (tick *Add python.exe to PATH*).
+1. On a Windows PC, install Python from python.org (tick *Add python.exe to PATH*), and optionally
+   [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer.
 2. Double-click `build_exe.bat`.
-3. Take `dist\Easy Video Downloader.exe` and give it to anyone. They do **not** need Python.
+3. Give `dist\Easy-Video-Downloader-Setup.exe` to anyone. They do **not** need Python. (Without Inno Setup
+   you get the folder `dist\Easy Video Downloader\`; keep it together and start the `.exe` inside.)
+
+## Temporary files
+
+The download engine, `yt-dlp.exe`, is itself a single-file program that unpacks into a `_MEI...` folder
+each time it runs. The app gives it a private temp folder, `%LOCALAPPDATA%\EasyVideoDownloader\runtime`,
+instead of `%TEMP%`. On each start, it removes leftovers there from earlier runs (for example after
+**Stop**, which ends yt-dlp at once). Folders still in use are skipped, and `%TEMP%` itself is never
+touched. Closing the window stops every process the app started.
 
 ## How automatic updates work
 
-The download engine (yt-dlp) is not baked into the `.exe`. It lives in
+The download engine (yt-dlp) is not baked into the program. It lives in
 `%LOCALAPPDATA%\EasyVideoDownloader\bin`:
 
 - **First start:** downloads the newest yt-dlp, FFmpeg and Deno (one time, roughly 260 MB, needs internet).
@@ -50,7 +68,7 @@ The download engine (yt-dlp) is not baked into the `.exe`. It lives in
 
 ## Notes for whoever hands this out
 
-- The first time the `.exe` runs, Windows SmartScreen may say "Windows protected your PC" because the
+- The first time the installer runs, Windows SmartScreen may say "Windows protected your PC" because the
   file is not code-signed. Click **More info → Run anyway**.
 - Downloads go to `Downloads\Video Downloads` unless the user picks another folder (it is remembered).
 - To reset everything, delete the folder `%LOCALAPPDATA%\EasyVideoDownloader`.

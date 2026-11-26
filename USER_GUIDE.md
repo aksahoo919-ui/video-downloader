@@ -20,11 +20,21 @@ You do **not** need to install anything else.
 ## 1. Get the program
 
 1. Click this link:
-   **[Download Easy Video Downloader](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader.exe)**
-2. Your browser saves a file called **Easy-Video-Downloader.exe**, usually in your **Downloads** folder.
-3. *(Optional)* Move it to your Desktop so it's easy to find.
+   **[Download Easy Video Downloader](https://github.com/aksahoo919-ui/video-downloader/releases/latest/download/Easy-Video-Downloader-Setup.exe)**
+2. Your browser saves a file called **Easy-Video-Downloader-Setup.exe**, usually in your **Downloads** folder.
+3. Double-click it. If Windows says **"Windows protected your PC"**, click **More info**, then **Run anyway**
+   (see below for why).
+4. Click **Next** and **Install**. It doesn't need administrator rights and finishes in a few seconds.
+   Leave **Create a desktop shortcut** ticked if you want one.
 
-There is no installer. The file you downloaded **is** the program.
+The program is installed in `%LOCALAPPDATA%\Programs\Easy Video Downloader`. Open it from the
+**Start menu** or the desktop shortcut. If you make your own shortcut, point it at
+`%LOCALAPPDATA%\Programs\Easy Video Downloader\Easy Video Downloader.exe`.
+
+To update later, download and run the installer again. It replaces the old version and keeps your settings.
+
+**Had the older single-file version?** Install as above, then delete the old **Easy-Video-Downloader.exe**
+file and any shortcuts that point to it.
 
 ### If your browser warns you
 
@@ -35,7 +45,8 @@ download, then **Keep**, then **Keep anyway**).
 
 ## 2. Open the program for the first time
 
-1. Double-click **Easy-Video-Downloader.exe**.
+1. Open **Easy Video Downloader** from the Start menu or the desktop shortcut (the installer can also open it
+   for you at the end).
 2. Windows may show a blue box saying **"Windows protected your PC"**.
    This appears because the program is new and not signed by a big company. It is expected.
    - Click **More info**
@@ -136,7 +147,7 @@ The program tells you in plain words what happened. Common messages:
 
 ## Removing the program
 
-1. Delete **Easy-Video-Downloader.exe**.
+1. Open **Settings → Apps → Installed apps**, find **Easy Video Downloader**, and choose **Uninstall**.
 2. *(Optional)* Delete the folder `%LOCALAPPDATA%\EasyVideoDownloader` (see "Start completely fresh" above) to remove its tools and settings.
 
 Your downloaded videos and music are not affected.

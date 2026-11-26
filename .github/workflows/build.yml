@@ -26,19 +26,39 @@ jobs:
           python -m pip install --no-binary pyinstaller --no-cache-dir pyinstaller
       - name: Check the program loads on Windows
         run: python -c "import easy_video_downloader as m; print(m.APP_NAME, m.YTDLP_URL)"
-      - name: Build
+      # A folder build (--onedir): the program runs straight from its install folder and
+      # never unpacks itself into %TEMP% (a --onefile build leaves "_MEI..." folders there
+      # whenever it is killed or crashes).
+      - name: Build (folder)
         run: >
-          python -m PyInstaller --noconfirm --clean --onefile --windowed
+          python -m PyInstaller --noconfirm --clean --onedir --windowed
           --name "Easy Video Downloader" --icon icon.ico --add-data "icon.ico;."
           --version-file version_info.txt --noupx
           easy_video_downloader.py
-      - name: Give the file a link-friendly name
-        run: Copy-Item "dist/Easy Video Downloader.exe" "dist/Easy-Video-Downloader.exe"
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build the installer
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DAppVersion=1.0.${{ github.run_number }}" installer.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: Easy-Video-Downloader-Windows
-          path: dist/Easy-Video-Downloader.exe
+          path: dist/Easy-Video-Downloader-Setup.exe
           if-no-files-found: error
+
+  # Installs the new build on a clean Windows machine, opens and closes it several times
+  # (normally and by force) and fails if anything new is left in %TEMP%.
+  windows-test:
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Easy-Video-Downloader-Windows
+          path: dist
+      - name: Open and close the app, then check %TEMP%
+        run: ./tests/windows_temp_check.ps1 -Setup dist/Easy-Video-Downloader-Setup.exe
 
   android:
     runs-on: ubuntu-latest
@@ -67,20 +87,24 @@ jobs:
   # https://github.com/<owner>/<repo>/releases/latest/download/Easy-Video-Downloader.apk
   release:
     if: github.ref == 'refs/heads/main'
-    needs: [windows, android]
+    needs: [windows, windows-test, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: out
           merge-multiple: true
+      # Also publish the installer under the old file name, so links shared earlier keep working.
+      - name: Keep the old Windows link working
+        run: cp out/Easy-Video-Downloader-Setup.exe out/Easy-Video-Downloader.exe
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Easy Video Downloader (build ${{ github.run_number }})
           body: |
-            **Windows:** download **Easy-Video-Downloader.exe** below and double-click it. No installation or Python needed.
+            **Windows:** download **Easy-Video-Downloader-Setup.exe** below and double-click it. It installs the program
+            (no admin rights needed) and adds Start menu and desktop shortcuts.
             If Windows says "Windows protected your PC", click **More info -> Run anyway**.
 
             **Android:** download **Easy-Video-Downloader.apk** on your phone, open it and tap **Install**.
@@ -88,6 +112,7 @@ jobs:
 
             Step-by-step help: [User Guide](https://github.com/${{ github.repository }}/blob/main/USER_GUIDE.md)
           files: |
+            out/Easy-Video-Downloader-Setup.exe
             out/Easy-Video-Downloader.exe
             out/Easy-Video-Downloader.apk
           make_latest: true

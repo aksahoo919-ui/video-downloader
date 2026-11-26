@@ -5,12 +5,17 @@ A simple window for downloading videos / audio with yt-dlp.
 How it stays up to date
 -----------------------
 The download engine (yt-dlp) is NOT baked into this program. It is kept as a
-separate file in the user's app-data folder and is refreshed automatically:
-  * first start  -> the newest yt-dlp, FFmpeg and Deno are downloaded once
-  * every start  -> the newest yt-dlp release is compared with the installed one
-                    and downloaded if it is newer
-  * long sessions-> the check is repeated before a download if it is stale
+separate file in the user's app-data folder:
+  * first start      -> the newest yt-dlp, FFmpeg and Deno are downloaded once
+  * failed download  -> if a newer engine could fix the error, yt-dlp is updated
+                        and the download is retried once
 So the program keeps working when YouTube changes, without rebuilding the exe.
+
+Temporary files
+---------------
+yt-dlp.exe unpacks itself into a temporary "_MEI..." folder each time it runs.
+Child processes therefore get a private temp folder (APP_DIR/runtime) instead of
+the system Temp folder, and leftovers there from earlier runs are removed on start.
 """
 
 import hashlib
@@ -46,6 +51,7 @@ else:
     APP_DIR = Path.home() / ".easy_video_downloader"
 BIN_DIR = APP_DIR / "bin"
 CONFIG_FILE = APP_DIR / "settings.json"
+RUNTIME_DIR = APP_DIR / "runtime"   # private temp folder for yt-dlp and its helpers
 DEFAULT_FOLDER = str(Path.home() / "Downloads" / "Video Downloads")
 
 YTDLP_PATH = BIN_DIR / ("yt-dlp.exe" if IS_WINDOWS else "yt-dlp")
@@ -143,22 +149,107 @@ def to_float(text):
 
 
 def tool_env():
-    """Environment for child processes: our tools folder goes first on PATH."""
+    """Environment for child processes: our tools folder goes first on PATH, and on
+    Windows they use our private temp folder instead of the system Temp folder."""
     env = os.environ.copy()
     env["PATH"] = str(BIN_DIR) + os.pathsep + env.get("PATH", "")
+    if IS_WINDOWS:
+        try:
+            RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+            env["TMP"] = env["TEMP"] = str(RUNTIME_DIR)
+        except OSError:
+            pass  # fall back to the normal Temp folder rather than failing
     return env
+
+
+def clean_runtime_dir():
+    """Remove "_MEI..." folders that earlier yt-dlp runs left in OUR runtime folder.
+
+    Only RUNTIME_DIR is ever touched, never the system Temp folder. A folder that is
+    still in use (for example by a download in another window) cannot be renamed on
+    Windows, so it is skipped; very new folders are skipped too in case they are
+    still being unpacked.
+    """
+    if not IS_WINDOWS:
+        return
+    try:
+        entries = list(RUNTIME_DIR.iterdir())
+    except OSError:
+        return
+    now = time.time()
+    for entry in entries:
+        name = entry.name
+        leftover = name.startswith("stale-")     # renamed earlier but not fully deleted
+        if not (name.startswith("_MEI") or leftover):
+            continue
+        try:
+            if entry.is_symlink() or getattr(entry, "is_junction", lambda: False)() or not entry.is_dir():
+                continue
+            if not leftover:
+                if now - entry.stat().st_mtime < 60:
+                    continue
+                target = entry.with_name(f"stale-{name}-{os.getpid()}")
+                os.rename(entry, target)          # fails while anything inside is in use
+                entry = target
+            shutil.rmtree(entry, ignore_errors=True)
+        except OSError:
+            continue
+
+
+# Child processes that are still running, so closing the window can stop all of them.
+_children = set()
+_children_lock = threading.Lock()
+
+
+def start_child(args, **kwargs):
+    proc = subprocess.Popen(args, creationflags=NO_WINDOW, env=tool_env(), **kwargs)
+    with _children_lock:
+        _children.add(proc)
+    return proc
+
+
+def forget_child(proc):
+    with _children_lock:
+        _children.discard(proc)
+
+
+def stop_process_tree(proc):
+    """Stop a child process and everything it started (FFmpeg, Deno, ...)."""
+    if proc is None or proc.poll() is not None:
+        return
+    try:
+        if IS_WINDOWS:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           creationflags=NO_WINDOW, timeout=15)
+        else:
+            proc.terminate()
+        proc.wait(timeout=10)
+    except Exception:
+        pass
+
+
+def stop_all_children():
+    with _children_lock:
+        running = list(_children)
+    for proc in running:
+        stop_process_tree(proc)
 
 
 def run_quiet(args, timeout=120):
     """Run a helper command and return (exit_code, combined_output)."""
     try:
-        done = subprocess.run(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-            timeout=timeout, creationflags=NO_WINDOW, env=tool_env(),
-        )
-        return done.returncode, done.stdout.decode("utf-8", errors="replace").strip()
-    except Exception as exc:  # missing file, timeout, ...
+        proc = start_child(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+    except Exception as exc:  # missing file, ...
         return -1, str(exc)
+    try:
+        out, _ = proc.communicate(timeout=timeout)
+        return proc.returncode, out.decode("utf-8", errors="replace").strip()
+    except Exception as exc:  # timeout, ...
+        stop_process_tree(proc)
+        return -1, str(exc)
+    finally:
+        forget_child(proc)
 
 
 def download_file(url, dest, on_progress=None):
@@ -541,7 +632,7 @@ class App(tk.Tk):
                 APP_NAME, "A download is still running.\nStop it and close the program?"):
             return
         self.cancelled = True
-        self._kill_process()
+        stop_all_children()   # the download, plus any version/update check still running
         self.destroy()
 
     # --------------------------------------------------------- UI utilities
@@ -670,6 +761,7 @@ class App(tk.Tk):
         download_file(url, dest, progress)
 
     def _setup_worker(self):
+        clean_runtime_dir()   # before this run starts any yt-dlp process of its own
         try:
             BIN_DIR.mkdir(parents=True, exist_ok=True)
             first_time = not YTDLP_PATH.exists()
@@ -835,17 +927,7 @@ class App(tk.Tk):
         self._kill_process()
 
     def _kill_process(self):
-        proc = self.process
-        if proc and proc.poll() is None:
-            try:
-                if IS_WINDOWS:  # also stops FFmpeg and other helpers it started
-                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                   creationflags=NO_WINDOW)
-                else:
-                    proc.terminate()
-            except Exception:
-                pass
+        stop_process_tree(self.process)
 
     def _build_command(self, url, mode, choice, folder):
         cmd = [
@@ -911,10 +993,9 @@ class App(tk.Tk):
         self._post("detail", "")
         self._post("log", f"--- {url}")
         try:
-            self.process = subprocess.Popen(
+            self.process = start_child(
                 self._build_command(url, mode, choice, folder),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                creationflags=NO_WINDOW, env=tool_env(),
             )
         except OSError as exc:
             return False, f"The download engine could not start ({exc}).", str(exc)
@@ -973,6 +1054,7 @@ class App(tk.Tk):
                 self._post("status", prefix + "This one was already downloaded.")
 
         code = self.process.wait()
+        forget_child(self.process)
         if code == 0:
             return True, "", ""
         if last_error:

@@ -1,5 +1,7 @@
 @echo off
-REM Double-click this file on Windows to create "Easy Video Downloader.exe".
+REM Double-click this file on Windows to build Easy Video Downloader.
+REM Makes a program folder (dist\Easy Video Downloader\) and, if Inno Setup 6 is installed,
+REM a single installer (dist\Easy-Video-Downloader-Setup.exe).
 REM Needs Python 3.9+ from python.org (tick "Add python.exe to PATH" when installing).
 setlocal
 cd /d "%~dp0"
@@ -15,15 +17,23 @@ if not exist ".build-venv\Scripts\python.exe" %PY% -m venv .build-venv || goto :
 ".build-venv\Scripts\python.exe" -m pip install --quiet --upgrade pip pyinstaller || goto :fail
 
 echo [2/3] Building the program (takes about a minute)...
-".build-venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onefile --windowed ^
+".build-venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean --onedir --windowed ^
     --name "Easy Video Downloader" --icon icon.ico --add-data "icon.ico;." ^
     --version-file version_info.txt --noupx ^
     easy_video_downloader.py || goto :fail
 
-echo [3/3] Done.
-echo.
-echo Your program is here:  %~dp0dist\Easy Video Downloader.exe
-echo You can copy that single file to any Windows 10/11 PC. Python is NOT needed there.
+echo [3/3] Making the installer...
+set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if exist "%ISCC%" (
+    "%ISCC%" /Qp installer.iss || goto :fail
+    echo.
+    echo Your installer is here:  %~dp0dist\Easy-Video-Downloader-Setup.exe
+    echo Give that one file to anyone. Python is NOT needed on their PC.
+) else (
+    echo Inno Setup 6 is not installed, so no installer was made.
+    echo The program folder is here:  %~dp0dist\Easy Video Downloader\
+    echo Keep the whole folder together; start "Easy Video Downloader.exe" inside it.
+)
 explorer "%~dp0dist"
 pause
 exit /b 0
